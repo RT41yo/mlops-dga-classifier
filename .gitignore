@@ -205,3 +205,32 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+
+# Logs
+*.log
+
+# Local data / artifacts
+data/raw/
+data/processed/
+artifacts/
+models/
+*.pkl
+*.joblib
+
+# Streamlit
+.streamlit/
+
+# ClearML local cache
+.clearml/
+
+# Docker
+*.pid
