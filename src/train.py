@@ -1,11 +1,12 @@
 from pathlib import Path
+
 import joblib
 import matplotlib.pyplot as plt
 import pandas as pd
 from clearml import Dataset, Task
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import ConfusionMatrixDisplay, accuracy_score, f1_score, confusion_matrix
+from sklearn.metrics import ConfusionMatrixDisplay, accuracy_score, confusion_matrix, f1_score
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 
@@ -13,14 +14,16 @@ from sklearn.pipeline import Pipeline
 PROJECT_NAME = "MLOPS DGA"
 TASK_NAME = "train_dga_baseline"
 
-DATASET_ID = "1fb5ea76060e457b876dca5592b9904b"
-
-TEST_SIZE = 0.2
-RANDOM_STATE = 42
-MAX_FEATURES = 5000
-NGRAM_RANGE = (3, 5)
-C = 1.0
-MAX_ITER = 300
+DEFAULT_PARAMS = {
+    "dataset_id": "1fb5ea76060e457b876dca5592b9904b",
+    "test_size": 0.2,
+    "random_state": 42,
+    "max_features": 5000,
+    "ngram_min": 3,
+    "ngram_max": 5,
+    "C": 1.0,
+    "max_iter": 300,
+}
 
 ARTIFACTS_DIR = Path("artifacts")
 ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -34,11 +37,10 @@ def load_dataset(dataset_id: str) -> pd.DataFrame:
     if not csv_files:
         raise FileNotFoundError(f"No CSV files found in dataset path: {local_path}")
 
-    df = pd.read_csv(csv_files[0])
-    return df
+    return pd.read_csv(csv_files[0])
 
 
-def save_confusion_matrix(y_true, y_pred, output_path: Path):
+def save_confusion_matrix(y_true, y_pred, output_path: Path) -> None:
     cm = confusion_matrix(y_true, y_pred)
     disp = ConfusionMatrixDisplay(confusion_matrix=cm)
     disp.plot()
@@ -54,23 +56,13 @@ def main():
         task_type=Task.TaskTypes.training,
     )
 
-    task.execute_remotely(queue_name="students", exit_process=True)
+    params = task.connect(DEFAULT_PARAMS)
 
-    task.connect(
-        {
-            "dataset_id": DATASET_ID,
-            "test_size": TEST_SIZE,
-            "random_state": RANDOM_STATE,
-            "max_features": MAX_FEATURES,
-            "ngram_range": NGRAM_RANGE,
-            "C": C,
-            "max_iter": MAX_ITER,
-        }
-    )
+    task.execute_remotely(queue_name="students", exit_process=True)
 
     logger = task.get_logger()
 
-    df = load_dataset(DATASET_ID)
+    df = load_dataset(params["dataset_id"])
     df = df.dropna(subset=["domain", "label"]).copy()
     df["domain"] = df["domain"].astype(str).str.strip()
     df = df[df["domain"] != ""]
@@ -78,10 +70,12 @@ def main():
     X_train, X_test, y_train, y_test = train_test_split(
         df["domain"],
         df["label"],
-        test_size=TEST_SIZE,
-        random_state=RANDOM_STATE,
+        test_size=params["test_size"],
+        random_state=params["random_state"],
         stratify=df["label"],
     )
+
+    ngram_range = (params["ngram_min"], params["ngram_max"])
 
     model = Pipeline(
         [
@@ -89,16 +83,16 @@ def main():
                 "tfidf",
                 TfidfVectorizer(
                     analyzer="char",
-                    ngram_range=NGRAM_RANGE,
-                    max_features=MAX_FEATURES,
+                    ngram_range=ngram_range,
+                    max_features=params["max_features"],
                 ),
             ),
             (
                 "clf",
                 LogisticRegression(
-                    C=C,
-                    max_iter=MAX_ITER,
-                    random_state=RANDOM_STATE,
+                    C=params["C"],
+                    max_iter=params["max_iter"],
+                    random_state=params["random_state"],
                 ),
             ),
         ]
@@ -124,11 +118,7 @@ def main():
 
     model_path = ARTIFACTS_DIR / "dga_pipeline.joblib"
     joblib.dump(model, model_path)
-
-    task.upload_artifact(
-        name="model_pipeline",
-        artifact_object=str(model_path),
-    )
+    task.upload_artifact(name="model_pipeline", artifact_object=str(model_path))
 
     print(f"Accuracy: {accuracy:.4f}")
     print(f"F1: {f1:.4f}")
