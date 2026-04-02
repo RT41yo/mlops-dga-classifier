@@ -234,3 +234,5 @@ models/
 
 # Docker
 *.pid
+
+artifacts/
