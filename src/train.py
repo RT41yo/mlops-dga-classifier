@@ -118,12 +118,15 @@ def main():
     output_model = OutputModel(
         task=task,
         name="dga-char-tfidf-lr",
-        tags=["dga", "sklearn", "baseline", "best-candidate"],
+        tags=["dga", "sklearn", "baseline", "best-candidate", "v1"],
         comment=f"Char TF-IDF + LogisticRegression, f1={f1:.4f}, acc={accuracy:.4f}",
         framework="scikit-learn",
     )
+
     output_model.update_weights(
         weights_filename=str(model_path),
+        upload_uri="http://localhost:8081",
+        target_filename="dga_pipeline.joblib",
         auto_delete_file=False,
     )
     OutputModel.wait_for_uploads()
