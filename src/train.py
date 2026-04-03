@@ -3,7 +3,7 @@ from pathlib import Path
 import joblib
 import matplotlib.pyplot as plt
 import pandas as pd
-from clearml import Dataset, Task
+from clearml import Dataset, Task, OutputModel
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import ConfusionMatrixDisplay, accuracy_score, confusion_matrix, f1_score
@@ -32,11 +32,9 @@ ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
 def load_dataset(dataset_id: str) -> pd.DataFrame:
     dataset = Dataset.get(dataset_id=dataset_id, alias="training_data")
     local_path = Path(dataset.get_local_copy())
-
     csv_files = list(local_path.rglob("*.csv"))
     if not csv_files:
         raise FileNotFoundError(f"No CSV files found in dataset path: {local_path}")
-
     return pd.read_csv(csv_files[0])
 
 
@@ -55,9 +53,7 @@ def main():
         task_name=TASK_NAME,
         task_type=Task.TaskTypes.training,
     )
-
     params = task.connect(DEFAULT_PARAMS)
-
     task.execute_remotely(queue_name="students", exit_process=True)
 
     logger = task.get_logger()
@@ -118,7 +114,19 @@ def main():
 
     model_path = ARTIFACTS_DIR / "dga_pipeline.joblib"
     joblib.dump(model, model_path)
-    task.upload_artifact(name="model_pipeline", artifact_object=str(model_path))
+
+    output_model = OutputModel(
+        task=task,
+        name="dga-char-tfidf-lr",
+        tags=["dga", "sklearn", "baseline", "best-candidate"],
+        comment=f"Char TF-IDF + LogisticRegression, f1={f1:.4f}, acc={accuracy:.4f}",
+        framework="scikit-learn",
+    )
+    output_model.update_weights(
+        weights_filename=str(model_path),
+        auto_delete_file=False,
+    )
+    OutputModel.wait_for_uploads()
 
     print(f"Accuracy: {accuracy:.4f}")
     print(f"F1: {f1:.4f}")
