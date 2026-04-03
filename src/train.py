@@ -125,7 +125,6 @@ def main():
 
     output_model.update_weights(
         weights_filename=str(model_path),
-        upload_uri="http://192.168.1.50:8081",
         target_filename="dga_pipeline.joblib",
         auto_delete_file=False,
     )
