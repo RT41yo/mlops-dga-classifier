@@ -53,7 +53,7 @@ def main():
         task_name=TASK_NAME,
         task_type=Task.TaskTypes.training,
     )
-    task.output_uri = "http://192.168.1.50:8081"
+    task.output_uri = "http://192.168.1.60:8081"
 
     params = task.connect(DEFAULT_PARAMS)
     task.execute_remotely(queue_name="students", exit_process=True)
