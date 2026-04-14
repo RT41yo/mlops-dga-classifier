@@ -236,3 +236,4 @@ models/
 *.pid
 
 artifacts/
+screenshots/
